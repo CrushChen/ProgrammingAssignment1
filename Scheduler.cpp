@@ -35,6 +35,26 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
      *   need to be run (all process variables having been filled with data 
      *   from input file
      *****/
+    std::ifstream text_file;
+    text_file.open(file_name_);
+    if (text_file.fail()) {
+    std::cerr << "ERROR: file not found: " << file_name_ << "\n";
+    exit(2);
+  }
+
+  // Read each character and update histogram
+  unsigned char c;
+  while (text_file >> c) {                  
+      processes.push_back(c);
+  }
+  
+  // If terminated for reason other than end of file
+  if (!text_file.eof()) {
+    std::cerr << "ERROR: failure while reading file: " << file_name_ << "\n";
+    exit(2);
+  }
+  
+  text_file.close();
     return processes;
 }
 
