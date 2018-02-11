@@ -5,10 +5,6 @@
  * Created on February 10, 2018, 5:23 PM
  */
 
-#include <cstdlib>
-
-using namespace std;
-
 /*
  * The program should accept three arguments:
  * 1) input file name

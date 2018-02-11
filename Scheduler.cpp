@@ -8,6 +8,8 @@
 #include "Scheduler.h"
 
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 
 using std::cin;
 using std::cout;
