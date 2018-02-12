@@ -35,26 +35,44 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
      *   need to be run (all process variables having been filled with data 
      *   from input file
      *****/
-    std::ifstream text_file;
-    text_file.open(file_name_);
-    if (text_file.fail()) {
-    std::cerr << "ERROR: file not found: " << file_name_ << "\n";
-    exit(2);
-  }
+    string line; //line we will send to Execute()
+    Process temp;
+    inputFileStream.open(file_name);
 
-  // Read each character and update histogram
-  unsigned char c;
-  while (text_file >> c) {                  
-      processes.push_back(c);
-  }
-  
-  // If terminated for reason other than end of file
-  if (!text_file.eof()) {
-    std::cerr << "ERROR: failure while reading file: " << file_name_ << "\n";
-    exit(2);
-  }
-  
-  text_file.close();
+    if (inputFileStream.fail()) {
+
+        cerr << "ERROR: file not found: " << file_name << "\n";
+
+        exit(2);
+
+    }
+    //While our file has another line, execute that line
+    while (getline(inputFileStream, line)) {
+        vector <string> tokens;
+        // stringstream class check1
+        stringstream check1(line);
+        string intermediate;
+        // Tokenizing w.r.t. space ' '
+        while (getline(check1, intermediate, ' ')) {
+            tokens.push_back(intermediate);
+        }
+        // get each character and store it into process        
+                temp.name = tokens[0];                       
+                temp.arrival_time = stoi(tokens[1]);                        
+                temp.total_time = stoi(tokens[2]);
+                temp.remaining_time = stoi(tokens[2]);                       
+                temp.block_interval = stoi(tokens[3]);
+                temp.termination_time = 0; //need to update with time goes by
+                processes.push_back(temp);   
+    }
+
+    // If terminated for reason other than end of file
+    if (!text_file.eof()) {
+        std::cerr << "ERROR: failure while reading file: " << file_name_ << "\n";
+        exit(2);
+    }
+
+    text_file.close();
     return processes;
 }
 
