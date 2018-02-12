@@ -23,7 +23,7 @@ Scheduler::Scheduler(std::string file_name_, int block_duration, int time_slice)
     BLOCK_DURATION = block_duration;
     TIME_SLICE = time_slice;
     global_time = 0;
-    ParseFile(file_name_);
+    ParseFile(file_name_); 
 }
 
 std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
@@ -37,11 +37,11 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
      *****/
     string line; //line we will send to Execute()
     Process temp;
-    inputFileStream.open(file_name);
+    inputFileStream.open(file_name_);
 
     if (inputFileStream.fail()) {
 
-        cerr << "ERROR: file not found: " << file_name << "\n";
+        cerr << "ERROR: file not found: " << file_name_ << "\n";
 
         exit(2);
 
@@ -81,7 +81,18 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
  * - Implement round robin scheduling algorithm
  *****/
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
-
+    cout<< "RR " + block_duration +" " + time_slice ;
+    bool done = false;
+    int time =0;
+    int i =0;
+    while(done == false)
+    {
+        if((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i))==0)
+        {
+        cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
+        }
+        if
+    }
 }
 
 /****
