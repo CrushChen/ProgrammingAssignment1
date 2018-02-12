@@ -97,5 +97,11 @@ void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
  * - Compute average turn around time of processes
  *****/
 float Scheduler::AverageTurnaroundTime(std::vector<Scheduler::Process> processes) {
+    int average = 0 ;
+    for (unsigned i=0; i<processes.size(); i++)
+    {
+        average += processes.at(i).termination_time;
+    }
+    average = average/processes.size() ;
     return 0;
 }
