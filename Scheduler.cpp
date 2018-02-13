@@ -216,11 +216,46 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
 void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
     //Documentation for std::priority_queue:
     //http://en.cppreference.com/w/cpp/container/priority_queue
-    std::priority_queue<Process> blocked__list; //maintains the blocked process list
+    std::priority_queue<Process> blocked_list;//maintains the blocked process list
     std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
-
-
+    
+    cout << "SPN " << BLOCK_DURATION << " " << TIME_SLICE << "\n";
+    int time = 0; 
+    bool done = false;
+    
+    /* Outer loop verifying that we have finished every process */
+    while(!ready_list.empty() && !blocked_list.empty()){
+        char statusCode;
+        for(Process p : processes){
+            if(p.arrival_time <= time && p.remaining_time > 0){
+                ready_list.push(p);
+            }
+        }
+    
+        /* Inner loop handling all ready_list elements up to time */
+        while(!ready_list.empty()){
+            Process p = ready_list.top();
+            ready_list.pop();
+            /* If our process will finish before blocking */
+            if(p.remaining_time - TIME_SLICE < p.block_interval){    
+                p.remaining_time -= TIME_SLICE;
+                p.termination_time = time;
+            /* If we will block before finishing our operation */    
+            } else if(p.remaining_time - TIME_SLICE > p.block_interval){
+                p.remaining_time -= (TIME_SLICE - p.block_interval);
+                if(p.remaining_time > 0){
+                    blocked_list.push(p);
+                } else {
+                    p.termination_time = time;
+                }
+            }
+            
+            time += TIME_SLICE;
+            cout << time << "\t" << p.name << "\t" << TIME_SLICE << endl;
+        }   
+    }
 }
+
 bool Scheduler::checkifallblocked(std::vector<int> a) {
                     for (int i = 0; i < a.size(); ++i) {
                         if (a.at(i) == 0) {
