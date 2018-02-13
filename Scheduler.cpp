@@ -107,12 +107,17 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
 
         blocktimeremain.at(i) = 0;
     }
-   while (blocktimeremain.size() == 0) {
+   while (blocktimeremain.size() != 0) {
 
-
+        
         while (processes.at(i).remaining_time = 0) {
             blocktimeremain.erase(i);
-            i = i + 1
+            i = i + 1;
+            if(i>blocktimeremain.size())
+            {
+                i=i-blocktimeremain.size();
+            }
+                
         }
 
 
@@ -136,6 +141,10 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
         } else {
             while (blocktimeremain[i] != 0) {
                 i = i + 1;
+                if(i>blocktimeremain.size())
+            {
+                i=i-blocktimeremain.size();
+            }
             }
             if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval) == 0) {
                 time = time + TIME_SLICE;
@@ -191,6 +200,10 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
             }
         }
         i = i + 1;
+       if(i>blocktimeremain.size())
+            {
+                i=i-blocktimeremain.size();
+            }
     }
 }
 }
