@@ -103,7 +103,7 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
         {
             if(((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i).block_interval))>time_slice) 
             {
-                cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
+                cout << time + " " + processes.at(i).name + " " + time_slice +" " + S +'\n';
                 processes.at(i).remaining_time=processes.at(i).remaining_time-time_slice;
                 processes.at(i).termination_time= time;
                 for(int x = 0; x < processes.size(); ++x)
