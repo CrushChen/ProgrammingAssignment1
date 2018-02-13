@@ -172,7 +172,8 @@ private:
      *  which process to run next
      */
     void ShortestProcessNext(std::vector<Process> processes);
-
+    bool checkifallblocked(std::vector<int> a);
+    int findindexofelement(std::vector<int> a,int b);
     /**
      * Computes the average turnaround time for a given scheduling algorithm
      * Turnaround time = termination time - arrival time
