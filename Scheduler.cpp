@@ -96,34 +96,103 @@ void Scheduler::Execute(std::vector<Scheduler::Process> processes) {
  *****/
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
     cout << "RR " << BLOCK_DURATION << " " << TIME_SLICE;
-    bool done = false;
+   
+
     int time = 0;
     int i = 0;
+
+
     std::vector<int> blocktimeremain(processes.size());
     for (int x = 0; x < processes.size(); ++x) {
-        blocktimeremain[x] = 0;
+
+        blocktimeremain.at(i) = 0;
     }
-    while (done == false) {
-        if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval) == 0) {
-            time = time + TIME_SLICE;
-            cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << "\t" << "B" << '\n';
-            processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
+   while (blocktimeremain.size() == 0) {
+
+
+        while (processes.at(i).remaining_time = 0) {
+            blocktimeremain.erase(i);
+            i = i + 1
+        }
+
+
+        if (checkisallblocked(blocktimeremain) == true) {
+            int timesliceforblock = std::min_element(blocktimeremain.begin(), blocktimeremain.end());
+            int i = findindexofelement(blocktimeremain, timesliceforblock);
+            time = time + timesliceforblock;
+            cout << time + " " + "<idle>" + " " + timesliceforblock + " " + I + '\n';
+            processes.at(i).remaining_time = processes.at(i).remaining_time - timesliceforblock;
             processes.at(i).termination_time = time;
-            blocktimeremain.at(i) = BLOCK_DURATION;
+            blocktimeremain.at(i) = block_duration;
+            for (int x = 0; x < processes.size(); ++x) {
+                if (blocktimeremain.at(i) != 0) {
+                    blocktimeremain.at(i) = blocktimeremain.at(i) - timesliceforblock;
+                    if (blocktimeremain.at(i) < 0) {
+                        blocktimeremain.at(i) = 0;
+                    }
+
+                }
+            }
         } else {
-            if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval)) > TIME_SLICE) {
-                cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << "\t" << "S" << '\n';
+            while (blocktimeremain[i] != 0) {
+                i = i + 1;
+            }
+            if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval) == 0) {
+                time = time + TIME_SLICE;
+                cout << time + " " + processes.at(i).name + " " + TIME_SLICE + " " + B + '\n';
                 processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
                 processes.at(i).termination_time = time;
+                blocktimeremain.at(i) = block_duration;
                 for (int x = 0; x < processes.size(); ++x) {
-                    if (blocktimeremain[x] != 0) {
-                        blocktimeremain[x] = blocktimeremain[x] - TIME_SLICE;
+                    if (blocktimeremain.at(i) != 0) {
+                        blocktimeremain.at(i) = blocktimeremain.at(i) - TIME_SLICE;
+                        if (blocktimeremain.at(i) < 0) {
+                            blocktimeremain.at(i) = 0;
+                        }
 
                     }
                 }
+            } else {
+                if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval)) > time_slice) {
+                    time = time + TIME_SLICE;
+                    cout << time + " " + processes.at(i).name + " " + TIME_SLICE + " " + S + '\n';
+                    processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
+                    processes.at(i).termination_time = time;
+                    for (int x = 0; x < processes.size(); ++x) {
+                        if (blocktimeremain.at(i) != 0) {
+                            blocktimeremain.at(i) = blocktimeremain.at(i) - TIME_SLICE;
+                            if (blocktimeremain.at(i) < 0) {
+                                blocktimeremain.at(i) = 0;
+                            }
+                        }
+
+                    }
+
+                } else {
+                    int quotient = ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) / (processes.at(i).block_interval)) + 1;
+                    int newtimeslice = (quotient * (processes.at(i).block_interval)) - ((processes.at(i).total_time)-(processes.at(i).remaining_time))
+                            cout << time + " " + processes.at(i).name + " " + newtimeslice + " " + B + '\n';
+                    processes.at(i).remaining_time = processes.at(i).remaining_time - newtimeslice;
+                    time = time + newtimeslice;
+
+                    processes.at(i).termination_time = time;
+                    for (int x = 0; x < processes.size(); ++x) {
+                        if (blocktimeremain.at(i) != 0) {
+                            blocktimeremain.at(i) = blocktimeremain.at(i) - newtimeslice;
+                            if (blocktimeremain.at(i) < 0) {
+                                blocktimeremain.at(i) = 0;
+                            }
+
+                        }
+                    }
+                    blocktimeremain.at(i) = block_duration;
+
+                }
             }
         }
+        i = i + 1;
     }
+}
 }
 
 
@@ -139,6 +208,23 @@ void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
 
 
 }
+bool Scheduler::checkifallblocked(std::vector<int> a) {
+                    for (int i = 0; i < a.size(); ++i) {
+                        if (a.at(i) == 0) {
+                            return false;
+                        }
+                    }
+                    return true;
+
+                }
+
+                int Scheduler::findindexofelement(std::vector<int> a, int b) {
+                    for (int i = 0; i < a.size(); ++i) {
+                        if (a.at(i) == b) {
+                            return i;
+                        }
+                    }
+                }
 
 /**
  * Computes average turn around time of processes
