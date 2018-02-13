@@ -93,10 +93,8 @@ private:
 
         /**
          * Implements less than operator for the priority queue
-         * ****Sorts Process(es) based on remaining_time****
-         * Uses the block_interval (or the total time left, whichever is shortest) of the processes 
-         * in the ready list to determine which process to run next
-         * @param rhs
+         * ****Sorts Process(es) based on remaining_time or block interval time, whichever is shortest****
+         * @param x
          * @return 
          */
         bool operator<(const Process& x) const {
@@ -138,6 +136,15 @@ private:
      * @param file_name_
      */
     std::vector<Process> ParseFile(std::string file_name_);
+    
+    
+    /**
+     * Function to call both scheduling algorithms
+     * Passes the vector of processes read from the ParseFile method to both
+     * algorithms 
+     * @param processes
+     */
+    void Execute(std::vector<Scheduler::Process> processes);
 
     /*****
      * For both algorithms below, when a process re-enters the ready queue

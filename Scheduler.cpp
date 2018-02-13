@@ -23,7 +23,7 @@ using std::ifstream;
 Scheduler::Scheduler(std::string file_name_, int block_duration, int time_slice) {
     BLOCK_DURATION = block_duration;
     TIME_SLICE = time_slice;
-    ParseFile(file_name_);
+    Execute(ParseFile(file_name_));
 }
 
 std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
@@ -63,7 +63,7 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
         temp.total_time = stoi(tokens[2]);
         temp.remaining_time = stoi(tokens[2]);
         temp.block_interval = stoi(tokens[3]);
-        temp.termination_time = -1; //need to update with time goes by
+        temp.termination_time = -1; //indicating the process has not terminated, needs to be updated when process completes
         processes.push_back(temp);
     }
 
@@ -77,49 +77,55 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
     return processes;
 }
 
+void Scheduler::Execute(std::vector<Scheduler::Process> processes) {
+    RoundRobin(processes);
+
+    /* Reset the member variables for the processes
+     * after round robin algorithm has completed
+     */
+    for (int i = 0; i < processes.size(); ++i) {
+        processes.at(i).remaining_time = processes.at(i).total_time;
+        processes.at(i).termination_time = -1;
+    }
+    ShortestProcessNext(processes);
+}
+
 /****
  * TODO:
  * - Implement round robin scheduling algorithm
  *****/
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
-     cout<< "RR " + block_duration +" " + time_slice ;
+    cout << "RR " << BLOCK_DURATION << " " << TIME_SLICE;
     bool done = false;
-    int time =0;
-    int i =0;
+    int time = 0;
+    int i = 0;
     std::vector<int> blocktimeremain(processes.size());
-    for(int x = 0; x < processes.size(); ++x)
-    { blocktimeremain[x] = 0;}
-    while(done == false)
-    {
-        if((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i).block_interval)==0)
-        {
-            time=time+time_slice;
-        cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
-        processes.at(i).remaining_time=processes.at(i).remaining_time-time_slice;
-        processes.at(i).termination_time= time;
-        blocktimeremain.at(i)=block_duration;
-        }
-        else 
-        {
-            if(((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i).block_interval))>time_slice) 
-            {
-                cout << time + " " + processes.at(i).name + " " + time_slice +" " + S +'\n';
-                processes.at(i).remaining_time=processes.at(i).remaining_time-time_slice;
-                processes.at(i).termination_time= time;
-                for(int x = 0; x < processes.size(); ++x)
-                    { if (blocktimeremain[x] != 0)
-                        {
-                        blocktimeremain[x]=blocktimeremain[x]-time_slice;
-                    
-                        }
+    for (int x = 0; x < processes.size(); ++x) {
+        blocktimeremain[x] = 0;
+    }
+    while (done == false) {
+        if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval) == 0) {
+            time = time + TIME_SLICE;
+            cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << "\t" << "B" << '\n';
+            processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
+            processes.at(i).termination_time = time;
+            blocktimeremain.at(i) = BLOCK_DURATION;
+        } else {
+            if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval)) > TIME_SLICE) {
+                cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << "\t" << "S" << '\n';
+                processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
+                processes.at(i).termination_time = time;
+                for (int x = 0; x < processes.size(); ++x) {
+                    if (blocktimeremain[x] != 0) {
+                        blocktimeremain[x] = blocktimeremain[x] - TIME_SLICE;
+
                     }
-            else
-            {
-                
+                }
             }
         }
     }
 }
+
 
 /****
  * TODO:
