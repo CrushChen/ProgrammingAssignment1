@@ -216,44 +216,84 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
 void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
     //Documentation for std::priority_queue:
     //http://en.cppreference.com/w/cpp/container/priority_queue
+    
     std::priority_queue<Process> blocked_list;//maintains the blocked process list
-    std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
+    std::priority_queue<Process> ready_list; 
+    //Sorts Process(es) based on remaining_time or block_interval time, whichever is shortest
     
     cout << "SPN " << BLOCK_DURATION << " " << TIME_SLICE << "\n";
-    int time = 0; 
+    int time = 0;
+    int numRemainingProcesses = processes.size();
     bool done = false;
     
+    for(Process p : processes){// at time zero, get all processes that arrive
+        if(p.arrival_time == 0){
+            ready_list.push(p);
+        }
+    }
+    cout << ready_list.size() << endl;
     /* Outer loop verifying that we have finished every process */
-    while(!ready_list.empty() && !blocked_list.empty()){
-        char statusCode;
+    while(numRemainingProcesses > 0 && time < 5000){ //TIME < 5000 BECAUSE CODE IS BROKEN. TO AVOID EXCESSIVE LOOPAGE
         for(Process p : processes){
             if(p.arrival_time <= time && p.remaining_time > 0){
                 ready_list.push(p);
             }
         }
-    
-        /* Inner loop handling all ready_list elements up to time */
-        while(!ready_list.empty()){
-            Process p = ready_list.top();
-            ready_list.pop();
-            /* If our process will finish before blocking */
-            if(p.remaining_time - TIME_SLICE < p.block_interval){    
-                p.remaining_time -= TIME_SLICE;
-                p.termination_time = time;
-            /* If we will block before finishing our operation */    
-            } else if(p.remaining_time - TIME_SLICE > p.block_interval){
-                p.remaining_time -= (TIME_SLICE - p.block_interval);
-                if(p.remaining_time > 0){
-                    blocked_list.push(p);
-                } else {
-                    p.termination_time = time;
-                }
+        
+        if(ready_list.empty() && !blocked_list.empty()){
+            Process p = blocked_list.top();
+            if(p.began_blocking >= time+BLOCK_DURATION){
+                p.began_blocking = -1;
+                ready_list.push(p);
+                blocked_list.pop();
             }
-            
+            cout << "UPDATING BLOCKED LIST\n";
+            time += BLOCK_DURATION;
+            cout << "LOOP RESTART" << endl;
+            continue; //restart the loop
+        }
+        
+        Process p = ready_list.top();
+        ready_list.pop();
+        /* If we have no processes ready but all are blocking */
+
+        /* If our process will finish before blocking */
+        printf("name: %s, arrival_time: %i, total_time: %i, remaining_time: %i, "
+                "block_interval: %i,\ntermination_time: %i, began_blocking: %i, "
+                "Current Time: %i\n",
+                p.name, p.arrival_time, p.total_time, p.remaining_time, p.block_interval,
+                p.termination_time, p.began_blocking, time);
+        if (p.remaining_time - TIME_SLICE < p.block_interval) {
+            cout << " " << time << "\t" << p.name << "\t" << 
+                    TIME_SLICE - p.remaining_time << "T" << endl;
+            p.remaining_time = 0;
+            p.termination_time = time;
+            numRemainingProcesses--;
             time += TIME_SLICE;
-            cout << time << "\t" << p.name << "\t" << TIME_SLICE << endl;
-        }   
+            cout << "PROCESS_FINISH_BEFORE_BLOCK\n";
+            
+        } 
+        /* If our process will block before finishing */
+        if (p.remaining_time - TIME_SLICE > p.block_interval) {
+            p.remaining_time -= TIME_SLICE;
+            p.began_blocking = time;
+            time += TIME_SLICE;
+            blocked_list.push(p);
+            cout << "PROCESS_BLOCK_BEFORE_FINISHING\n";
+        /* IDLING (nothing ready and nothing is blocked, then we are idle. */
+        } else if (ready_list.empty() && blocked_list.empty()) {
+            cout << " " << time << "\t" << "<idle>" << "\t" << "" << "I" << endl;
+            time += TIME_SLICE;
+            cout << "IDLING\n";            
+        /* BLOCKING (some proceses are ready, but are being blocked) */
+        } else if (!ready_list.empty() && !blocked_list.empty()){
+            cout << " " << time << "\t" << p.name << "\t" << "" << "B" << endl;
+            time += BLOCK_DURATION;
+            cout << "BLOCKING\n";            
+        }
+
     }
+    cout << " " << time << "\t" << "<done>" << AverageTurnaroundTime(processes);
 }
 
 bool Scheduler::checkifallblocked(std::vector<int> a) {
