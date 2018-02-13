@@ -18,16 +18,17 @@ using std::getline;
 using std::istringstream;
 using std::string;
 using std::vector;
+using std::ifstream;
 
 Scheduler::Scheduler(std::string file_name_, int block_duration, int time_slice) {
     BLOCK_DURATION = block_duration;
     TIME_SLICE = time_slice;
-    global_time = 0;
-    ParseFile(file_name_); 
+    ParseFile(file_name_);
 }
 
 std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
     vector<Scheduler::Process> processes;
+    ifstream inputFileStream; //input file stream
     /****
      * TODO:
      * - Read input file and extract data
@@ -50,29 +51,29 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
     while (getline(inputFileStream, line)) {
         vector <string> tokens;
         // stringstream class check1
-        stringstream check1(line);
+        istringstream check1(line);
         string intermediate;
         // Tokenizing w.r.t. space ' '
         while (getline(check1, intermediate, ' ')) {
             tokens.push_back(intermediate);
         }
         // get each character and store it into process        
-                temp.name = tokens[0];                       
-                temp.arrival_time = stoi(tokens[1]);                        
-                temp.total_time = stoi(tokens[2]);
-                temp.remaining_time = stoi(tokens[2]);                       
-                temp.block_interval = stoi(tokens[3]);
-                temp.termination_time = 0; //need to update with time goes by
-                processes.push_back(temp);   
+        temp.name = tokens[0];
+        temp.arrival_time = stoi(tokens[1]);
+        temp.total_time = stoi(tokens[2]);
+        temp.remaining_time = stoi(tokens[2]);
+        temp.block_interval = stoi(tokens[3]);
+        temp.termination_time = -1; //need to update with time goes by
+        processes.push_back(temp);
     }
 
     // If terminated for reason other than end of file
-    if (!text_file.eof()) {
+    if (!inputFileStream.eof()) {
         std::cerr << "ERROR: failure while reading file: " << file_name_ << "\n";
         exit(2);
     }
 
-    text_file.close();
+    inputFileStream.close();
     return processes;
 }
 
@@ -81,21 +82,16 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
  * - Implement round robin scheduling algorithm
  *****/
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
-    cout<< "RR " + block_duration +" " + time_slice ;
+    cout << "RR " + BLOCK_DURATION << " " << TIME_SLICE;
     bool done = false;
-    int time =0;
-    int i =0;
-    while(done == false)
-    {
-        if((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i))==0)
-        {
-        cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
-        }
-        else 
-        {
-            if(((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)/(processes.at(i)))>0) 
-            {
-                
+    int time = 0;
+    int i = 0;
+    while (done == false) {
+        if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i)) == 0) {
+            cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << " " << BLOCK_DURATION << '\n';
+        } else {
+            if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) / (processes.at(i))) > 0) {
+
             }
         }
     }
@@ -106,19 +102,23 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
  * - Implement shortest process next scheduling algorithm
  *****/
 void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
+    //Documentation for std::priority_queue:
+    //http://en.cppreference.com/w/cpp/container/priority_queue
+    std::priority_queue<Process> blocked__list; //maintains the blocked process list
+    std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
+
 
 }
 
-/****
- * TODO:
- * - Compute average turn around time of processes
- *****/
+/**
+ * Computes average turn around time of processes
+ * @param processes
+ * @return 
+ */
 float Scheduler::AverageTurnaroundTime(std::vector<Scheduler::Process> processes) {
-    int average = 0 ;
-    for (unsigned i=0; i<processes.size(); i++)
-    {
-        average += processes.at(i).termination_time;
+    float sum = 0;
+    for (unsigned i = 0; i < processes.size(); i++) {
+        sum += processes.at(i).termination_time - processes.at(i).arrival_time;
     }
-    average = average/processes.size() ;
-    return 0;
+    return sum / static_cast<float> (processes.size());
 }

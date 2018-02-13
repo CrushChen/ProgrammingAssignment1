@@ -94,24 +94,35 @@ private:
         /**
          * Implements less than operator for the priority queue
          * ****Sorts Process(es) based on remaining_time****
+         * Uses the block_interval (or the total time left, whichever is shortest) of the processes 
+         * in the ready list to determine which process to run next
          * @param rhs
          * @return 
          */
-        bool operator<(const Process& rhs) const {
-            return remaining_time < rhs.remaining_time;
+        bool operator<(const Process& x) const {
+            if(remaining_time < block_interval){
+                if(x.remaining_time < x.block_interval){
+                    //Sort both by remaining_time
+                    return remaining_time < x.remaining_time;
+                } else {
+                    //Sort this process by remaining time and x process by block interval
+                    return remaining_time < x.block_interval;
+                } 
+            } else {
+                if(x.remaining_time < x.block_interval){
+                    //Sort this process by block interval and x process by remaining time
+                    return block_interval < x.remaining_time;
+                } else {
+                    //Sort both processes by block_interval
+                    return block_interval < x.block_interval;
+                }
+            }
         }
-
     };
 
 
     int BLOCK_DURATION; //decimal integer time length a process is unavailable to run after it blocks
     int TIME_SLICE; //decimal integer length of time slice for RoundRobin algorithm 
-    int global_time; //stores the global simulation time;
-
-    //Documentation for std::priority_queue:
-    //http://en.cppreference.com/w/cpp/container/priority_queue
-    std::priority_queue<Process> process_list; //maintains the blocked process list
-    std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
 
     /**
      * Extracts information from input file (allocates data into Process structs)
@@ -136,7 +147,7 @@ private:
     /**
      * Round Robin scheduling algorithm implementation:
      * 
-     * -Scheduler keeps a circular list of processes
+     * -Scheduler keeps a circular list of processes 
      * -Scheduler runs periodically or when a process blocks (period = time_slice)
      * -Each time scheduler runs it gives the CPU to the next process in the
      *  circular list
