@@ -90,7 +90,7 @@ private:
         int block_interval; //interval of time process blocks for I/O
         int remaining_time; //might be useful for SPN
         int termination_time; //might be useful for computing average turnaround time
-
+        int began_blocking;
         /**
          * Implements less than operator for the priority queue
          * ****Sorts Process(es) based on remaining_time or block interval time, whichever is shortest****
