@@ -82,16 +82,40 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
  * - Implement round robin scheduling algorithm
  *****/
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
-    cout << "RR " + BLOCK_DURATION << " " << TIME_SLICE;
+     cout<< "RR " + block_duration +" " + time_slice ;
     bool done = false;
-    int time = 0;
-    int i = 0;
-    while (done == false) {
-        if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i)) == 0) {
-            cout << time << "\t" << processes.at(i).name << "\t" << TIME_SLICE << " " << BLOCK_DURATION << '\n';
-        } else {
-            if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) / (processes.at(i))) > 0) {
-
+    int time =0;
+    int i =0;
+    std::vector<int> blocktimeremain(processes.size());
+    for(int x = 0; x < processes.size(); ++x)
+    { blocktimeremain[x] = 0;}
+    while(done == false)
+    {
+        if((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i).block_interval)==0)
+        {
+            time=time+time_slice;
+        cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
+        processes.at(i).remaining_time=processes.at(i).remaining_time-time_slice;
+        processes.at(i).termination_time= time;
+        blocktimeremain.at(i)=block_duration;
+        }
+        else 
+        {
+            if(((((processes.at(i).total_time)-(processes.at(i).remaining_time))+time_slice)%(processes.at(i).block_interval))>time_slice) 
+            {
+                cout << time + " " + processes.at(i).name + " " + time_slice +" " + B +'\n';
+                processes.at(i).remaining_time=processes.at(i).remaining_time-time_slice;
+                processes.at(i).termination_time= time;
+                for(int x = 0; x < processes.size(); ++x)
+                    { if (blocktimeremain[x] != 0)
+                        {
+                        blocktimeremain[x]=blocktimeremain[x]-time_slice;
+                    
+                        }
+                    }
+            else
+            {
+                
             }
         }
     }
