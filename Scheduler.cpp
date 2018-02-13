@@ -64,6 +64,7 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
         temp.remaining_time = stoi(tokens[2]);
         temp.block_interval = stoi(tokens[3]);
         temp.termination_time = -1; //indicating the process has not terminated, needs to be updated when process completes
+        temp.began_blocking = -1;
         processes.push_back(temp);
     }
 
