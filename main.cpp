@@ -20,6 +20,9 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
+
+#include "Scheduler.h"
 
 
 int main(int argc, char** argv) {
@@ -27,10 +30,16 @@ int main(int argc, char** argv) {
         std::cerr << "usage: Assignment1 input_file\n";
         exit(1);
     }
-    
-    /* TODO:
-     *  -pass file name and both scheduler parameters to Scheduler class
-     */
+    std::istringstream ss1(argv[2]);
+    int block_duration;
+    if (!(ss1 >> block_duration))
+        std::cerr << "Invalid argument1 " << argv[2] << '\n';
+    std::istringstream ss2(argv[3]);
+    int time_slice;
+    if (!(ss2 >> time_slice))
+        std::cerr << "Invalid argument " << argv[3] << '\n';
+
+    Scheduler s(argv[1], block_duration, time_slice); //create scheduler object and pass in command line arguments
 
     return 0;
 }

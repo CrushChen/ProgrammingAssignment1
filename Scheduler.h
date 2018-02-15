@@ -90,7 +90,9 @@ private:
         int block_interval; //interval of time process blocks for I/O
         int remaining_time; //might be useful for SPN
         int termination_time; //might be useful for computing average turnaround time
-        int began_blocking;
+        int time_blocked; //keeps track of how long the process has been blocked for OR how long until the next block
+        bool is_blocked; //holds the block status of the process
+        
         /**
          * Implements less than operator for the priority queue
          * ****Sorts Process(es) based on remaining_time or block interval time, whichever is shortest****
@@ -172,14 +174,21 @@ private:
      *  which process to run next
      */
     void ShortestProcessNext(std::vector<Process> processes);
-    bool checkifallblocked(std::vector<int> a);
-    int findindexofelement(std::vector<int> a,int b);
+
     /**
      * Computes the average turnaround time for a given scheduling algorithm
      * Turnaround time = termination time - arrival time
      * @return 
      */
     float AverageTurnaroundTime(std::vector<Process> processes);
+    
+    /**
+     * Sets the currentIndex to the next valid index of the process list
+     * (wraps the list)
+     * @param currentIndex
+     * @param numProcesses
+     */
+    void getNextIndex(int& currentIndex, int& numProcesses);
 };
 
 #endif /* SCHEDULER_H */

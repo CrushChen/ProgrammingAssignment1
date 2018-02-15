@@ -10,6 +10,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
 
 using std::cin;
 using std::cout;
@@ -23,7 +24,11 @@ using std::ifstream;
 Scheduler::Scheduler(std::string file_name_, int block_duration, int time_slice) {
     BLOCK_DURATION = block_duration;
     TIME_SLICE = time_slice;
+    ParseFile(file_name_);
     Execute(ParseFile(file_name_));
+}
+
+Scheduler::~Scheduler() {
 }
 
 std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
@@ -41,11 +46,8 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
     inputFileStream.open(file_name_);
 
     if (inputFileStream.fail()) {
-
         cerr << "ERROR: file not found: " << file_name_ << "\n";
-
         exit(2);
-
     }
     //While our file has another line, execute that line
     while (getline(inputFileStream, line)) {
@@ -64,7 +66,8 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
         temp.remaining_time = stoi(tokens[2]);
         temp.block_interval = stoi(tokens[3]);
         temp.termination_time = -1; //indicating the process has not terminated, needs to be updated when process completes
-        temp.began_blocking = -1;
+        temp.is_blocked = false;
+        temp.time_blocked = temp.block_interval;
         processes.push_back(temp);
     }
 
@@ -75,140 +78,188 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
     }
 
     inputFileStream.close();
+
+    /* Confirms file sets process list correctly
+    for(int i = 0; i < processes.size(); ++i){
+        cout << "Process " << processes.at(i).name << " has arrival time " << processes.at(i).arrival_time;
+        cout << " blocking time " << processes.at(i).block_interval << " total time " << processes.at(i).total_time << std::endl;
+    }
+     */
     return processes;
 }
 
 void Scheduler::Execute(std::vector<Scheduler::Process> processes) {
     RoundRobin(processes);
-
     /* Reset the member variables for the processes
      * after round robin algorithm has completed
      */
-    for (int i = 0; i < processes.size(); ++i) {
-        processes.at(i).remaining_time = processes.at(i).total_time;
-        processes.at(i).termination_time = -1;
-    }
-    ShortestProcessNext(processes);
+    //ShortestProcessNext(processes);
 }
 
 /****
  * TODO:
  * - Implement round robin scheduling algorithm
+ * 
  *****/
+/**
+ * Round Robin scheduling algorithm implementation:
+ * 
+ * -Scheduler keeps a circular list of processes 
+ * -Scheduler runs periodically or when a process blocks (period = time_slice)
+ * -Each time scheduler runs it gives the CPU to the next process in the
+ *  circular list
+ * (Smaller time slice = better response time but reduces CPU efficiency)
+ * (Larger time slice decreases the total amount of process switch overhead)
+ */
+
+/**
+ * Reasons to switch processes:
+ * -time slice
+ * -process blocks
+ * 
+ * At each process switch:
+ * -update remaining_time
+ * 
+ * At each tick:
+ * -update global time
+ * -check for process termination
+ * -check for new process (based on arrival_time)
+ * @param processes
+ */
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
-    cout << "RR " << BLOCK_DURATION << " " << TIME_SLICE;
-   
-
     int time = 0;
-    int i = 0;
+    int currentIndex = 0;
+    int numProcesses = processes.size();
+    int currentIntervalTime = 0;
+    bool switched = false;
+    bool complete = false;
+    int numBlocked = 0;
+    int count;
+    int activeProcesses = 0;
+    bool wasIdle =false;
+    Scheduler::Process* temp;
+    Process* currentProcess;
 
+    cout << "RR " << BLOCK_DURATION << " " << TIME_SLICE << std::endl;
 
-    std::vector<int> blocktimeremain(processes.size());
-    for (int x = 0; x < processes.size(); ++x) {
-
-        blocktimeremain.at(i) = 0;
-    }
-   while (blocktimeremain.size() != 0) {
-
-        
-        while (processes.at(i).remaining_time = 0) {
-            blocktimeremain.erase(i);
-            i = i + 1;
-            if(i>blocktimeremain.size())
-            {
-                i=i-blocktimeremain.size();
+    //wait until a process arrives 
+    bool running = false;
+    while (!running) {
+        for (int i = 0; i < numProcesses; ++i) {
+            if (processes.at(i).arrival_time == time) {
+                currentProcess = &processes.at(i);
+                running = true;
+                currentIndex = i;
+                ++activeProcesses;
             }
+        }
+        ++time;
+        ++currentIntervalTime;
+    }
+
+    while (!complete) {
+        //Update blocked Processes
+        if (numBlocked != 0) {
+            for (int i = 0; i < numProcesses; ++i) {
+                temp = &processes.at(i);
+                if (temp->is_blocked) {
+                    temp->time_blocked -= 1;
+                    if (temp->time_blocked <= 0) {
+                        temp->is_blocked = false;
+                        temp->time_blocked = temp->block_interval;
+                        if(numBlocked == activeProcesses){ //system was idle
+                            cout << " " << (time - currentIntervalTime) << "\t<idle>\t" << +currentIntervalTime << "\tI" << std::endl;
+                            currentIntervalTime = 0;
+                            wasIdle = true;
+                        }
+                        --numBlocked;
+                    }
+                }
+            }
+        }
+
+        if (numBlocked != activeProcesses && !wasIdle) { //system is not idle
+            //check for current process termination
+            //switch processes and put currentProcess on completed list
+            if ((currentProcess->remaining_time <= currentIntervalTime)) { //process is terminated
+                currentProcess->termination_time = time;
+                cout << " " << (time - currentIntervalTime) << "\t" << currentProcess->name << "\t" << currentProcess->remaining_time << "\tT" << std::endl;
+                currentProcess->remaining_time = 0;
+                currentIntervalTime = 0;
+                --activeProcesses;
+                switched = true;
+            } else if (currentProcess->time_blocked <= 0 || currentIntervalTime % currentProcess->time_blocked == 0) { //process is blocking
+                currentProcess->is_blocked = true;
+                currentProcess->remaining_time -= currentIntervalTime;
+                currentProcess->time_blocked = BLOCK_DURATION;
+                cout << " " << (time - currentIntervalTime) << "\t" << currentProcess->name << "\t" << +currentIntervalTime << "\tB" << std::endl;
+                currentIntervalTime = 0;
+                ++numBlocked;
+                switched = true;
+            } else if (currentProcess != nullptr && time >= TIME_SLICE && currentIntervalTime % TIME_SLICE == 0) { //time slice occurs
+                currentProcess->remaining_time -= TIME_SLICE;
+                currentProcess->time_blocked -= TIME_SLICE;
+                cout << " " << (time - currentIntervalTime) << "\t" << currentProcess->name << "\t" << +currentIntervalTime << "\tS" << std::endl;
+                currentIntervalTime = 0;
+                switched = true;
+            }
+            
+            //process switching
+            if (switched && activeProcesses != 0) {
+                count = 0;
+                getNextIndex(currentIndex, numProcesses);
+                currentProcess = &processes.at(currentIndex);
+                //Search through all processes to find one that is not blocked, is past it's arrival time, and has not terminated
+                for(int i = 0; i < processes.size(); ++i){
+                    if(currentProcess->termination_time == -1){ //process hasn't finished
+                        if(!currentProcess->is_blocked){ //process isn't blocked
+                            if(currentProcess->arrival_time < time){ //process has arrived
+                                break; //successfully found a runnable process
+                            }
+                        }
+                    }
+                    getNextIndex(currentIndex, numProcesses);
+                    currentProcess = &processes.at(currentIndex);
+                }
                 
-        }
-
-
-        if (checkisallblocked(blocktimeremain) == true) {
-            int timesliceforblock = std::min_element(blocktimeremain.begin(), blocktimeremain.end());
-            int i = findindexofelement(blocktimeremain, timesliceforblock);
-            time = time + timesliceforblock;
-            cout << time + " " + "<idle>" + " " + timesliceforblock + " " + I + '\n';
-            processes.at(i).remaining_time = processes.at(i).remaining_time - timesliceforblock;
-            processes.at(i).termination_time = time;
-            blocktimeremain.at(i) = block_duration;
-            for (int x = 0; x < processes.size(); ++x) {
-                if (blocktimeremain.at(i) != 0) {
-                    blocktimeremain.at(i) = blocktimeremain.at(i) - timesliceforblock;
-                    if (blocktimeremain.at(i) < 0) {
-                        blocktimeremain.at(i) = 0;
-                    }
-
+                
+                //new process became available
+                if (currentProcess->remaining_time == currentProcess->total_time && currentProcess->arrival_time < time) {
+                    ++activeProcesses;
                 }
-            }
-        } else {
-            while (blocktimeremain[i] != 0) {
-                i = i + 1;
-                if(i>blocktimeremain.size())
-            {
-                i=i-blocktimeremain.size();
-            }
-            }
-            if ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval) == 0) {
-                time = time + TIME_SLICE;
-                cout << time + " " + processes.at(i).name + " " + TIME_SLICE + " " + B + '\n';
-                processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
-                processes.at(i).termination_time = time;
-                blocktimeremain.at(i) = block_duration;
-                for (int x = 0; x < processes.size(); ++x) {
-                    if (blocktimeremain.at(i) != 0) {
-                        blocktimeremain.at(i) = blocktimeremain.at(i) - TIME_SLICE;
-                        if (blocktimeremain.at(i) < 0) {
-                            blocktimeremain.at(i) = 0;
-                        }
-
-                    }
-                }
-            } else {
-                if (((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) % (processes.at(i).block_interval)) > time_slice) {
-                    time = time + TIME_SLICE;
-                    cout << time + " " + processes.at(i).name + " " + TIME_SLICE + " " + S + '\n';
-                    processes.at(i).remaining_time = processes.at(i).remaining_time - TIME_SLICE;
-                    processes.at(i).termination_time = time;
-                    for (int x = 0; x < processes.size(); ++x) {
-                        if (blocktimeremain.at(i) != 0) {
-                            blocktimeremain.at(i) = blocktimeremain.at(i) - TIME_SLICE;
-                            if (blocktimeremain.at(i) < 0) {
-                                blocktimeremain.at(i) = 0;
-                            }
-                        }
-
-                    }
-
-                } else {
-                    int quotient = ((((processes.at(i).total_time)-(processes.at(i).remaining_time)) + TIME_SLICE) / (processes.at(i).block_interval)) + 1;
-                    int newtimeslice = (quotient * (processes.at(i).block_interval)) - ((processes.at(i).total_time)-(processes.at(i).remaining_time))
-                            cout << time + " " + processes.at(i).name + " " + newtimeslice + " " + B + '\n';
-                    processes.at(i).remaining_time = processes.at(i).remaining_time - newtimeslice;
-                    time = time + newtimeslice;
-
-                    processes.at(i).termination_time = time;
-                    for (int x = 0; x < processes.size(); ++x) {
-                        if (blocktimeremain.at(i) != 0) {
-                            blocktimeremain.at(i) = blocktimeremain.at(i) - newtimeslice;
-                            if (blocktimeremain.at(i) < 0) {
-                                blocktimeremain.at(i) = 0;
-                            }
-
-                        }
-                    }
-                    blocktimeremain.at(i) = block_duration;
-
-                }
+                switched = false;
             }
         }
-        i = i + 1;
-       if(i>blocktimeremain.size())
-            {
-                i=i-blocktimeremain.size();
+        if (activeProcesses == 0) { //all processes have terminated
+            complete = true;
+            for(int i = 0; i < processes.size(); ++i){//confirm no available processes
+                if(processes.at(i).termination_time == -1){
+                    currentProcess = &processes.at(i);
+                    complete = false;
+                }
             }
+            if(complete){
+                cout << " " << +time << "\t<done>\t" << AverageTurnaroundTime(processes) << std::endl;
+            }
+        }
+        if(wasIdle){
+            wasIdle = false;
+        }
+
+        //cout << "Time: " << time << std::endl;
+        ++currentIntervalTime;
+        ++time;
+
     }
 }
-}
 
+void Scheduler::getNextIndex(int& currentIndex, int& numProcesses) {
+    if (currentIndex + 1 == numProcesses) {
+        currentIndex = 0;
+    } else {
+        ++currentIndex;
+    }
+}
 
 /****
  * TODO:
@@ -217,103 +268,11 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
 void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
     //Documentation for std::priority_queue:
     //http://en.cppreference.com/w/cpp/container/priority_queue
-    
-    std::priority_queue<Process> blocked_list;//maintains the blocked process list
-    std::priority_queue<Process> ready_list; 
-    //Sorts Process(es) based on remaining_time or block_interval time, whichever is shortest
-    
-    cout << "SPN " << BLOCK_DURATION << " " << TIME_SLICE << "\n";
-    int time = 0;
-    int numRemainingProcesses = processes.size();
-    bool done = false;
-    
-    for(Process p : processes){// at time zero, get all processes that arrive
-        if(p.arrival_time == 0){
-            ready_list.push(p);
-        }
-    }
-    cout << ready_list.size() << endl;
-    /* Outer loop verifying that we have finished every process */
-    while(numRemainingProcesses > 0 && time < 5000){ //TIME < 5000 BECAUSE CODE IS BROKEN. TO AVOID EXCESSIVE LOOPAGE
-        for(Process p : processes){
-            if(p.arrival_time <= time && p.remaining_time > 0){
-                ready_list.push(p);
-            }
-        }
-        
-        if(ready_list.empty() && !blocked_list.empty()){
-            Process p = blocked_list.top();
-            if(p.began_blocking >= time+BLOCK_DURATION){
-                p.began_blocking = -1;
-                ready_list.push(p);
-                blocked_list.pop();
-            }
-            cout << "UPDATING BLOCKED LIST\n";
-            time += BLOCK_DURATION;
-            cout << "LOOP RESTART" << endl;
-            continue; //restart the loop
-        }
-        
-        Process p = ready_list.top();
-        ready_list.pop();
-        /* If we have no processes ready but all are blocking */
+    std::priority_queue<Process> blocked__list; //maintains the blocked process list
+    std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
 
-        /* If our process will finish before blocking */
-        printf("name: %s, arrival_time: %i, total_time: %i, remaining_time: %i, "
-                "block_interval: %i,\ntermination_time: %i, began_blocking: %i, "
-                "Current Time: %i\n",
-                p.name, p.arrival_time, p.total_time, p.remaining_time, p.block_interval,
-                p.termination_time, p.began_blocking, time);
-        if (p.remaining_time - TIME_SLICE < p.block_interval) {
-            cout << " " << time << "\t" << p.name << "\t" << 
-                    TIME_SLICE - p.remaining_time << "T" << endl;
-            p.remaining_time = 0;
-            p.termination_time = time;
-            numRemainingProcesses--;
-            time += TIME_SLICE;
-            cout << "PROCESS_FINISH_BEFORE_BLOCK\n";
-            
-        } 
-        /* If our process will block before finishing */
-        if (p.remaining_time - TIME_SLICE > p.block_interval) {
-            p.remaining_time -= TIME_SLICE;
-            p.began_blocking = time;
-            time += TIME_SLICE;
-            blocked_list.push(p);
-            cout << "PROCESS_BLOCK_BEFORE_FINISHING\n";
-        /* IDLING (nothing ready and nothing is blocked, then we are idle. */
-        } else if (ready_list.empty() && blocked_list.empty()) {
-            cout << " " << time << "\t" << "<idle>" << "\t" << "" << "I" << endl;
-            time += TIME_SLICE;
-            cout << "IDLING\n";            
-        /* BLOCKING (some proceses are ready, but are being blocked) */
-        } else if (!ready_list.empty() && !blocked_list.empty()){
-            cout << " " << time << "\t" << p.name << "\t" << "" << "B" << endl;
-            time += BLOCK_DURATION;
-            cout << "BLOCKING\n";            
-        }
 
-    }
-    cout << " " << time << "\t" << "<done>" << AverageTurnaroundTime(processes);
 }
-
-bool Scheduler::checkifallblocked(std::vector<int> a) {
-                    for (int i = 0; i < a.size(); ++i) {
-                        if (a.at(i) == 0) {
-                            return false;
-                        }
-                    }
-                    return true;
-
-                }
-
-                int Scheduler::findindexofelement(std::vector<int> a, int b) {
-                    for (int i = 0; i < a.size(); ++i) {
-                        if (a.at(i) == b) {
-                            return i;
-                        }
-                    }
-                }
 
 /**
  * Computes average turn around time of processes
@@ -322,8 +281,11 @@ bool Scheduler::checkifallblocked(std::vector<int> a) {
  */
 float Scheduler::AverageTurnaroundTime(std::vector<Scheduler::Process> processes) {
     float sum = 0;
-    for (unsigned i = 0; i < processes.size(); i++) {
-        sum += processes.at(i).termination_time - processes.at(i).arrival_time;
+    for (int i = 0; i < processes.size(); ++i) {
+        sum += (processes.at(i).termination_time - processes.at(i).arrival_time);
+        //reset process data
+        processes.at(i).remaining_time = processes.at(i).total_time;
+        processes.at(i).termination_time = -1;
     }
-    return sum / static_cast<float> (processes.size());
+    return sum / static_cast<float>(processes.size());
 }
