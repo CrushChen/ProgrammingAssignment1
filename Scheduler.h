@@ -91,6 +91,7 @@ private:
         int remaining_time; //might be useful for SPN
         int termination_time; //might be useful for computing average turnaround time
         int time_blocked; //keeps track of how long the process has been blocked for OR how long until the next block
+        int time_until_blocked;
         bool is_blocked; //holds the block status of the process
         
         /**
