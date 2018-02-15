@@ -68,6 +68,7 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
         temp.termination_time = -1; //indicating the process has not terminated, needs to be updated when process completes
         temp.is_blocked = false;
         temp.time_blocked = temp.block_interval;
+        temp.time_until_blocked = temp.block_interval;
         processes.push_back(temp);
     }
 
@@ -232,10 +233,132 @@ void Scheduler::getNextIndex(int& currentIndex, int& numProcesses) {
 void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
     //Documentation for std::priority_queue:
     //http://en.cppreference.com/w/cpp/container/priority_queue
-    std::priority_queue<Process> blocked__list; //maintains the blocked process list
+    std::priority_queue<Process> blocked_list; //maintains the blocked process list
     std::priority_queue<Process> ready_list; //maintains the ready list for SPN;
+    cout << "SPN " << BLOCK_DURATION << " " << TIME_SLICE << "\n";
+    int time = 0;
+    int processesRemaining = processes.size();
+    bool done = false;
 
+    /* Outer loop verifying that we have finished every process */
+    while (processesRemaining != 0) {
+        int timeLeftInSlice = TIME_SLICE;
+        while (timeLeftInSlice > 0) {
+            /* Add all processes that have arrived which are not completed or blocked */
+            for (Process p : processes) {
+                if (p.arrival_time <= time && p.remaining_time > 0 && !p.is_blocked) {
+                    ready_list.push(p);
+                }
+            }
 
+            /* If we are idle */
+            if (ready_list.empty()) {
+                timeLeftInSlice--;
+                time++;
+            } else if(!ready_list.empty()){
+                cout << " " << time << "\t" << "<idle>" << "\t" << 
+                        timeLeftInSlice << "\t" << "I" << endl;
+            }
+            /* Update our blocked_list */
+            if (!blocked_list.empty()) {
+                /* Move all processes to ready list which are no longer blocked */
+                while (blocked_list.top().time_blocked + BLOCK_DURATION >= time) {
+                    ready_list.push(blocked_list.top());
+                }
+            }
+
+            while (!ready_list.empty() && timeLeftInSlice > 0) {
+                Process p = ready_list.top();
+                ready_list.pop();
+
+                /* We may be able to complete process before time slice is over */
+                if (p.remaining_time <= timeLeftInSlice) {
+
+                    /* If we can complete the process before it gets blocked */
+                    if (p.remaining_time <= p.time_until_blocked) {
+                        cout << " " << time << "\t" << p.name << "\t" << 
+                                timeLeftInSlice << "\t" << "T" << endl;
+                        /* Update time */
+                        time += p.remaining_time;
+                        timeLeftInSlice -= p.remaining_time;
+                        /* Update process */
+                        p.remaining_time = 0;
+                        p.termination_time = time;
+                        processesRemaining--;
+
+                        /* If there are more ready processes */
+                        if (ready_list.size() != 0) {
+                            p = ready_list.top();
+                            ready_list.pop();
+                        }
+                    }/* If we cannot complete our process before blocking */
+                    else if (p.remaining_time > p.time_until_blocked) {
+
+                        /* If we will block before the current time slice ends */
+                        if (p.time_until_blocked <= timeLeftInSlice) {
+                            cout << " " << time << "\t" << p.name << "\t" << 
+                                timeLeftInSlice << "\t" << "B" << endl;                            
+                            p.remaining_time -= p.time_until_blocked;
+                            timeLeftInSlice -= p.time_until_blocked;
+                            time += p.time_until_blocked;
+                            p.time_until_blocked = p.block_interval;
+                            p.time_blocked = time;
+                            p.is_blocked = true;
+                            blocked_list.push(p);
+                            
+                            if (ready_list.size() != 0) {
+                                p = ready_list.top();
+                                ready_list.pop();
+                            }
+                        }
+
+                        /* If we won't block before the current time slice ends */
+                        if (p.time_until_blocked > timeLeftInSlice) {
+                            cout << " " << time << "\t" << p.name << "\t" << 
+                                    timeLeftInSlice << "\t" << "S" << endl;
+                            time += timeLeftInSlice;
+                            p.remaining_time -= timeLeftInSlice;
+                            p.time_until_blocked -= timeLeftInSlice;
+                            /* Put the process back on the ready list since it isn't blocking */
+                            ready_list.push(p);
+                            timeLeftInSlice = 0;
+                        }
+                    }
+                    /* If we won't complete our process before time slice ends */
+                } else if (p.remaining_time > timeLeftInSlice) {
+
+                    /* If we will block before finishing time slice */
+                    if (p.time_until_blocked <= timeLeftInSlice) {
+                        cout << " " << time << "\t" << p.name << "\t" << 
+                                timeLeftInSlice << "\t" << "B" << endl;
+                        p.remaining_time -= p.time_until_blocked;
+                        timeLeftInSlice -= p.time_until_blocked;
+                        time += p.time_until_blocked;
+                        p.time_until_blocked = p.block_interval;
+                        p.time_blocked = time;
+                        p.is_blocked = true;
+                        blocked_list.push(p);                       
+                        
+                        if(ready_list.size() != 0) {
+                            p = ready_list.top();
+                            ready_list.pop();
+                        }
+                        /* If we won't block before we run out of time in this slice */
+                    } else if (p.time_until_blocked > timeLeftInSlice) {
+                        cout << " " << time << "\t" << p.name << "\t" << 
+                                timeLeftInSlice << "\t" << "S" << endl;
+                        time += timeLeftInSlice;
+                        p.remaining_time -= timeLeftInSlice;
+                        p.time_until_blocked -= timeLeftInSlice;
+                        ready_list.push(p);
+                        timeLeftInSlice = 0;
+                    }
+                }
+            }
+        }
+        timeLeftInSlice = TIME_SLICE;
+        //cout << time << "\t" << p.name << "\t" << TIME_SLICE << endl;
+    }
 }
 
 /**
