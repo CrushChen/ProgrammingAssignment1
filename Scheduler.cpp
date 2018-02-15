@@ -90,42 +90,10 @@ std::vector<Scheduler::Process> Scheduler::ParseFile(std::string file_name_) {
 
 void Scheduler::Execute(std::vector<Scheduler::Process> processes) {
     RoundRobin(processes);
-    /* Reset the member variables for the processes
-     * after round robin algorithm has completed
-     */
-    //ShortestProcessNext(processes);
+    //process objects are reset by the AverageTurnaroundTime function
+    ShortestProcessNext(processes);
 }
 
-/****
- * TODO:
- * - Implement round robin scheduling algorithm
- * 
- *****/
-/**
- * Round Robin scheduling algorithm implementation:
- * 
- * -Scheduler keeps a circular list of processes 
- * -Scheduler runs periodically or when a process blocks (period = time_slice)
- * -Each time scheduler runs it gives the CPU to the next process in the
- *  circular list
- * (Smaller time slice = better response time but reduces CPU efficiency)
- * (Larger time slice decreases the total amount of process switch overhead)
- */
-
-/**
- * Reasons to switch processes:
- * -time slice
- * -process blocks
- * 
- * At each process switch:
- * -update remaining_time
- * 
- * At each tick:
- * -update global time
- * -check for process termination
- * -check for new process (based on arrival_time)
- * @param processes
- */
 void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
     int time = 0;
     int currentIndex = 0;
@@ -136,7 +104,7 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
     int numBlocked = 0;
     int count;
     int activeProcesses = 0;
-    bool wasIdle =false;
+    bool wasIdle = false;
     Scheduler::Process* temp;
     Process* currentProcess;
 
@@ -167,7 +135,7 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
                     if (temp->time_blocked <= 0) {
                         temp->is_blocked = false;
                         temp->time_blocked = temp->block_interval;
-                        if(numBlocked == activeProcesses){ //system was idle
+                        if (numBlocked == activeProcesses) { //system was idle
                             cout << " " << (time - currentIntervalTime) << "\t<idle>\t" << +currentIntervalTime << "\tI" << std::endl;
                             currentIntervalTime = 0;
                             wasIdle = true;
@@ -181,14 +149,14 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
         if (numBlocked != activeProcesses && !wasIdle) { //system is not idle
             //check for current process termination
             //switch processes and put currentProcess on completed list
-            if ((currentProcess->remaining_time <= currentIntervalTime)) { //process is terminated
+            if ((currentProcess->remaining_time == currentIntervalTime)) { //process is terminated
                 currentProcess->termination_time = time;
                 cout << " " << (time - currentIntervalTime) << "\t" << currentProcess->name << "\t" << currentProcess->remaining_time << "\tT" << std::endl;
                 currentProcess->remaining_time = 0;
                 currentIntervalTime = 0;
                 --activeProcesses;
                 switched = true;
-            } else if (currentProcess->time_blocked <= 0 || currentIntervalTime % currentProcess->time_blocked == 0) { //process is blocking
+            } else if (currentIntervalTime == currentProcess->time_blocked) { //process is blocking
                 currentProcess->is_blocked = true;
                 currentProcess->remaining_time -= currentIntervalTime;
                 currentProcess->time_blocked = BLOCK_DURATION;
@@ -196,24 +164,24 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
                 currentIntervalTime = 0;
                 ++numBlocked;
                 switched = true;
-            } else if (currentProcess != nullptr && time >= TIME_SLICE && currentIntervalTime % TIME_SLICE == 0) { //time slice occurs
+            } else if (currentIntervalTime == TIME_SLICE) { //time slice occurs
                 currentProcess->remaining_time -= TIME_SLICE;
                 currentProcess->time_blocked -= TIME_SLICE;
                 cout << " " << (time - currentIntervalTime) << "\t" << currentProcess->name << "\t" << +currentIntervalTime << "\tS" << std::endl;
                 currentIntervalTime = 0;
                 switched = true;
             }
-            
+
             //process switching
             if (switched && activeProcesses != 0) {
                 count = 0;
                 getNextIndex(currentIndex, numProcesses);
                 currentProcess = &processes.at(currentIndex);
                 //Search through all processes to find one that is not blocked, is past it's arrival time, and has not terminated
-                for(int i = 0; i < processes.size(); ++i){
-                    if(currentProcess->termination_time == -1){ //process hasn't finished
-                        if(!currentProcess->is_blocked){ //process isn't blocked
-                            if(currentProcess->arrival_time < time){ //process has arrived
+                for (int i = 0; i < processes.size(); ++i) {
+                    if (currentProcess->termination_time == -1) { //process hasn't finished
+                        if (!currentProcess->is_blocked) { //process isn't blocked
+                            if (currentProcess->arrival_time < time) { //process has arrived
                                 break; //successfully found a runnable process
                             }
                         }
@@ -221,8 +189,7 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
                     getNextIndex(currentIndex, numProcesses);
                     currentProcess = &processes.at(currentIndex);
                 }
-                
-                
+
                 //new process became available
                 if (currentProcess->remaining_time == currentProcess->total_time && currentProcess->arrival_time < time) {
                     ++activeProcesses;
@@ -232,24 +199,21 @@ void Scheduler::RoundRobin(std::vector<Scheduler::Process> processes) {
         }
         if (activeProcesses == 0) { //all processes have terminated
             complete = true;
-            for(int i = 0; i < processes.size(); ++i){//confirm no available processes
-                if(processes.at(i).termination_time == -1){
+            for (int i = 0; i < processes.size(); ++i) {//confirm no available processes
+                if (processes.at(i).termination_time == -1) {
                     currentProcess = &processes.at(i);
                     complete = false;
                 }
             }
-            if(complete){
+            if (complete) {
                 cout << " " << +time << "\t<done>\t" << AverageTurnaroundTime(processes) << std::endl;
             }
         }
-        if(wasIdle){
+        if (wasIdle) {
             wasIdle = false;
         }
-
-        //cout << "Time: " << time << std::endl;
         ++currentIntervalTime;
         ++time;
-
     }
 }
 
@@ -275,7 +239,9 @@ void Scheduler::ShortestProcessNext(std::vector<Scheduler::Process> processes) {
 }
 
 /**
- * Computes average turn around time of processes
+ * Computes average turn around time of processes 
+ * Resets variables that have been changed by scheduling algorithms
+ * 
  * @param processes
  * @return 
  */
@@ -286,6 +252,8 @@ float Scheduler::AverageTurnaroundTime(std::vector<Scheduler::Process> processes
         //reset process data
         processes.at(i).remaining_time = processes.at(i).total_time;
         processes.at(i).termination_time = -1;
+        processes.at(i).is_blocked = false;
+        processes.at(i).time_blocked = processes.at(i).block_interval;
     }
-    return sum / static_cast<float>(processes.size());
+    return sum / static_cast<float> (processes.size());
 }
